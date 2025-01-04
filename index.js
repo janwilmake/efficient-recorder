@@ -153,7 +153,7 @@ class EfficientRecorder {
 
     this.screenshotInterval = setInterval(async () => {
       try {
-        const screenshotBuffer = await screenshot();
+        const screenshotBuffer = await screenshot({ format: "png" });
         this.queueUpload(screenshotBuffer, "screenshot");
       } catch (error) {
         console.error("Error capturing screenshot:", error);
@@ -187,7 +187,7 @@ class EfficientRecorder {
 
   async uploadImage(buffer, type, timestamp) {
     try {
-      const key = `${type}-${timestamp}.jpg`;
+      const key = `${type}-${timestamp}.png`;
 
       const upload = new Upload({
         client: s3Client,
