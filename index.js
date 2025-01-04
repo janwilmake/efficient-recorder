@@ -3,6 +3,8 @@
 const { S3Client } = require("@aws-sdk/client-s3");
 const { Upload } = require("@aws-sdk/lib-storage");
 const AudioRecorder = require("node-audiorecorder");
+const screenshot = require("screenshot-desktop");
+const NodeWebcam = require("node-webcam");
 const { program } = require("commander");
 const { PassThrough } = require("stream");
 
@@ -12,6 +14,20 @@ program
   .requiredOption("--region <region>", "S3 region")
   .requiredOption("--key <key>", "AWS access key")
   .requiredOption("--secret <secret>", "AWS secret key")
+  .option(
+    "--screenshot-interval <interval>",
+    "Screenshot interval in ms",
+    "1000",
+  )
+  .option(
+    "--webcam-interval <interval>",
+    "Webcam capture interval in ms",
+    "1000",
+  )
+  .option("--enable-screenshot", "Enable screenshot capture", false)
+  .option("--enable-webcam", "Enable webcam capture", false)
+  .option("--webcam-device <device>", "Webcam device name")
+  .option("--image-quality <quality>", "Image quality (1-100)", "80")
   .parse(process.argv);
 
 const opts = program.opts();
@@ -27,6 +43,19 @@ const s3Client = new S3Client({
   forcePathStyle: true,
 });
 
+// Initialize webcam
+const webcamOptions = {
+  width: 1280,
+  height: 720,
+  quality: parseInt(opts.imageQuality),
+  delay: 0,
+  saveShots: false,
+  output: "buffer",
+  device: opts.webcamDevice,
+  callbackReturn: "buffer",
+  verbose: false,
+};
+
 class EfficientRecorder {
   constructor() {
     this.isRecording = false;
@@ -35,7 +64,12 @@ class EfficientRecorder {
     this.lowQualityRecorder = null;
     this.highQualityRecorder = null;
     this.silenceTimer = null;
-    this.recordingChunks = []; // Buffer to store audio chunks
+    this.recordingChunks = [];
+    this.screenshotInterval = null;
+    this.webcamInterval = null;
+    this.webcam = null;
+    this.uploadQueue = [];
+    this.isUploading = false;
     this.setupRecorders();
   }
 
@@ -67,11 +101,111 @@ class EfficientRecorder {
       },
       console,
     );
+
+    // Setup webcam if enabled
+    if (opts.enableWebcam) {
+      this.webcam = NodeWebcam.create(webcamOptions);
+      // Promisify the capture method
+      this.captureWebcam = () => {
+        return new Promise((resolve, reject) => {
+          this.webcam.capture("", (err, data) => {
+            if (err) reject(err);
+            else resolve(data);
+          });
+        });
+      };
+    }
   }
 
   async start() {
     console.log("Starting efficient recorder...");
     this.startMonitoring();
+
+    if (opts.enableScreenshot) {
+      this.startScreenshotCapture();
+    }
+
+    if (opts.enableWebcam) {
+      this.startWebcamCapture();
+    }
+
+    // Start the upload processor
+    this.processUploadQueue();
+  }
+
+  startWebcamCapture() {
+    const interval = parseInt(opts.webcamInterval);
+    console.log(`Starting webcam capture with interval: ${interval}ms`);
+
+    this.webcamInterval = setInterval(async () => {
+      try {
+        const imageBuffer = await this.captureWebcam();
+        this.queueUpload(imageBuffer, "webcam");
+      } catch (error) {
+        console.error("Error capturing webcam:", error);
+      }
+    }, interval);
+  }
+
+  startScreenshotCapture() {
+    const interval = parseInt(opts.screenshotInterval);
+    console.log(`Starting screenshot capture with interval: ${interval}ms`);
+
+    this.screenshotInterval = setInterval(async () => {
+      try {
+        const screenshotBuffer = await screenshot();
+        this.queueUpload(screenshotBuffer, "screenshot");
+      } catch (error) {
+        console.error("Error capturing screenshot:", error);
+      }
+    }, interval);
+  }
+
+  queueUpload(buffer, type) {
+    this.uploadQueue.push({
+      buffer,
+      type,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  async processUploadQueue() {
+    while (true) {
+      if (this.uploadQueue.length > 0 && !this.isUploading) {
+        this.isUploading = true;
+        const item = this.uploadQueue.shift();
+        try {
+          await this.uploadImage(item.buffer, item.type, item.timestamp);
+        } catch (error) {
+          console.error(`Error processing upload for ${item.type}:`, error);
+        }
+        this.isUploading = false;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay to prevent CPU hogging
+    }
+  }
+
+  async uploadImage(buffer, type, timestamp) {
+    try {
+      const key = `${type}-${timestamp}.jpg`;
+
+      const upload = new Upload({
+        client: s3Client,
+        params: {
+          Bucket: "recordings",
+          Key: key,
+          Body: buffer,
+          ContentType: type === "webcam" ? "image/jpeg" : "image/png",
+        },
+        queueSize: 4,
+        partSize: 1024 * 1024 * 5, // 5MB parts
+      });
+
+      const result = await upload.done();
+      console.log(`${type} upload completed:`, result.Key);
+    } catch (error) {
+      console.error(`Error uploading ${type}:`, error);
+    }
   }
 
   startMonitoring() {
@@ -116,7 +250,7 @@ class EfficientRecorder {
     console.log("Starting high-quality recording...");
     this.startTime = Date.now();
     this.isRecording = true;
-    this.recordingChunks = []; // Reset chunks array
+    this.recordingChunks = [];
 
     // Start high quality recording and get its stream
     this.highQualityRecorder.start();
@@ -170,14 +304,37 @@ class EfficientRecorder {
       });
 
       const result = await upload.done();
-      console.log("Upload completed successfully:", result.Key);
+      console.log("Audio upload completed successfully:", result.Key);
 
       // Clean up
       this.currentStream = null;
       this.recordingChunks = [];
     } catch (err) {
-      console.error("Error completing upload:", err);
+      console.error("Error completing audio upload:", err);
       throw err;
+    }
+  }
+
+  async cleanup() {
+    if (this.screenshotInterval) {
+      clearInterval(this.screenshotInterval);
+    }
+    if (this.webcamInterval) {
+      clearInterval(this.webcamInterval);
+      if (this.webcam) {
+        this.webcam.clear();
+      }
+    }
+    if (this.isRecording) {
+      await this.stopRecording();
+    }
+    if (this.lowQualityRecorder) {
+      this.lowQualityRecorder.stop();
+    }
+
+    // Wait for any pending uploads to complete
+    while (this.uploadQueue.length > 0 || this.isUploading) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 }
@@ -185,3 +342,23 @@ class EfficientRecorder {
 // Start the recorder
 const recorder = new EfficientRecorder();
 recorder.start();
+
+// Handle cleanup on exit
+process.on("SIGINT", async () => {
+  console.log("Cleaning up...");
+  await recorder.cleanup();
+  process.exit(0);
+});
+
+// Handle uncaught errors
+process.on("uncaughtException", async (error) => {
+  console.error("Uncaught exception:", error);
+  await recorder.cleanup();
+  process.exit(1);
+});
+
+process.on("unhandledRejection", async (error) => {
+  console.error("Unhandled rejection:", error);
+  await recorder.cleanup();
+  process.exit(1);
+});

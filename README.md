@@ -2,41 +2,55 @@ Today I was inspired by this tweet after which I fell into this rabbit hole to c
 
 [![](tweet.png)](https://x.com/RichardMCNgo/status/1875093600612261909)
 
-After trying to implement this using Claude in Swift I completely failed (see folder `swift-version`) so I decided to create a simpler version (also using Claude) in Node.js
+After trying to implement this using Claude in Swift I completely failed (see folder [swift-version](swift-version)) so I decided to create a simpler version (also using Claude) in Node.js
 
 # Efficient Recorder
 
-An intelligent audio recording CLI tool that automatically detects speech and streams high-quality audio to S3. It uses dual-mode recording with 8kHz monitoring and 44.1kHz high-quality recording to efficiently capture audio only when needed.
+An intelligent, multi-modal recording CLI tool that automatically captures and streams audio, screenshots, and webcam video to S3. Uses advanced detection and efficient resource management to capture multimedia content.
 
 ## Features
 
-- **Intelligent Recording**: Monitors audio at 8kHz and only switches to high-quality 44.1kHz recording when speech is detected
-- **Automatic Silence Detection**: Automatically stops recording after 2 seconds of silence
-- **Direct S3 Streaming**: Streams audio directly to S3 as it's being recorded
-- **Resource Efficient**: Uses low-quality monitoring most of the time to minimize resource usage
-- **Easy to Use**: Simple CLI interface with minimal configuration needed
+- **Intelligent Audio Recording**:
+
+  - Monitors audio at 8kHz with automatic speech detection
+  - Switches to high-quality 44.1kHz recording when speech is detected
+  - Automatically stops recording after 2 seconds of silence
+  - Direct streaming to S3
+
+- **Automated Screenshot Capture**:
+
+  - Configurable screenshot interval
+  - Immediate upload of screenshots to S3
+  - Low-overhead screen capture
+
+- **Webcam Video Capture**:
+
+  - Configurable webcam capture interval
+  - Direct upload of webcam images to S3
+  - Supports custom webcam device selection
+
+- **Efficient Resource Management**:
+  - Minimal system resource usage during idle periods
+  - Intelligent detection and recording mechanisms
+  - Concurrent upload processing
 
 ## Prerequisites
 
 ### Required Software
 
-This package requires [SoX (Sound eXchange)](http://sox.sourceforge.net/) to be installed on your system.
+This package requires:
 
-#### Linux
+- [SoX (Sound eXchange)](http://sox.sourceforge.net/) for audio recording
 
-```bash
-sudo apt-get install sox libsox-fmt-all
-```
+  - Linux: `sudo apt-get install sox libsox-fmt-all`
+  - MacOS: `brew install sox`
+  - Windows: Download from [SourceForge](http://sourceforge.net/projects/sox/files/latest/download)
 
-#### macOS
-
-```bash
-brew install sox
-```
-
-#### Windows
-
-Download and install SoX from [SourceForge](http://sourceforge.net/projects/sox/files/latest/download)
+- Webcam capture tools
+  - Ubuntu: `sudo apt-get install fswebcam`
+  - Arch Linux: `sudo pamac build fswebcam`
+  - MacOS: `brew install imagesnap`
+  - Windows: Standalone exe included in node-webcam
 
 ### S3 Configuration
 
@@ -47,18 +61,20 @@ You'll need:
 - Secret key
 - A bucket named "recordings" (or modify the code to use a different bucket name)
 
-## Installation
-
-```bash
-npm install -g efficient-recorder
-```
-
 ## Usage
 
 Run the recorder using npx:
 
 ```bash
-npx efficient-recorder --endpoint YOUR_S3_ENDPOINT --key YOUR_ACCESS_KEY --secret YOUR_SECRET_KEY
+npx efficient-recorder \
+  --endpoint YOUR_S3_ENDPOINT \
+  --key YOUR_ACCESS_KEY \
+  --secret YOUR_SECRET_KEY \
+  --enable-screenshot \
+  --screenshot-interval 5000 \
+  --enable-webcam \
+  --webcam-interval 3000 \
+  --image-quality 80
 ```
 
 ### Command Line Options
@@ -66,79 +82,72 @@ npx efficient-recorder --endpoint YOUR_S3_ENDPOINT --key YOUR_ACCESS_KEY --secre
 - `--endpoint`: Your S3-compatible storage endpoint URL
 - `--key`: Your AWS/S3 access key
 - `--secret`: Your AWS/S3 secret key
+- `--enable-screenshot`: Enable screenshot capture
+- `--screenshot-interval`: Interval between screenshots (ms)
+- `--enable-webcam`: Enable webcam capture
+- `--webcam-interval`: Interval between webcam captures (ms)
+- `--webcam-device`: Specify webcam device (optional)
+- `--image-quality`: Image quality for webcam/screenshots (1-100)
 
 ## How It Works
 
-1. **Monitoring Phase**
+1. **Audio Monitoring**
 
-   - Continuously monitors audio input at 8kHz
-   - Calculates real-time dB levels from audio samples
-   - Uses minimal system resources during idle periods
+   - Continuous low-quality audio monitoring
+   - Switches to high-quality recording when speech is detected
+   - Automatic recording start and stop based on sound levels
 
-2. **Detection & Recording**
+2. **Screenshot Capture**
 
-   - When sound levels exceed 50dB, switches to high-quality recording mode
-   - Records at 44.1kHz with stereo audio
-   - Streams the recording directly to S3
+   - Captures screenshots at specified intervals
+   - Immediate upload to S3
+   - Configurable capture frequency
 
-3. **Intelligent Stop**
+3. **Webcam Capture**
 
-   - Monitors sound levels during recording
-   - If levels drop below 50dB for 2 consecutive seconds, stops recording
-   - Automatically finalizes the S3 upload
+   - Captures webcam images at specified intervals
+   - Supports multiple webcam devices
+   - Immediate upload to S3
 
-4. **File Management**
-   - Creates a new file for each recording session
-   - Files are named with timestamps (e.g., `recording-2025-01-04T12:34:56.789Z.wav`)
-   - Stored in the specified S3 bucket
+4. **Efficient Upload**
+   - Queued upload processing
+   - Concurrent uploads with multi-part support
+   - Minimal system resource overhead
 
-## Technical Details
+### Multimedia Specifications
 
-### Audio Specifications
+**Audio**
 
-**Monitoring Mode**
-
-- Sample Rate: 8kHz
-- Channels: Mono
+- Monitoring: 8kHz, Mono
+- Recording: 44.1kHz, Stereo
 - Format: WAV (16-bit PCM)
 
-**Recording Mode**
+**Screenshots**
 
-- Sample Rate: 44.1kHz
-- Channels: Stereo
-- Format: WAV (16-bit PCM)
+- Captured at system screen resolution
+- Uploaded as PNG
 
-### Dependencies
+**Webcam**
 
-- `node-audiorecorder`: For audio capture and recording
-- `@aws-sdk/client-s3`: For S3 streaming and uploads
-- `commander`: For CLI argument parsing
+- Resolution: 1280x720
+- Format: JPEG
+- Configurable quality
 
 ## Troubleshooting
-
-### Common Issues
 
 1. **"Command not found: rec"**
 
    - Ensure SoX is installed correctly
    - Verify SoX is in your system PATH
 
-2. **"Access Denied" when uploading**
+2. **S3 Upload Issues**
 
-   - Check your S3 credentials
-   - Verify the bucket exists and you have write permissions
+   - Check S3 credentials
+   - Verify bucket exists and write permissions are granted
 
-3. **No Audio Input**
-   - Check your system's default input device
-   - Verify microphone permissions
-
-### Debug Mode
-
-Add the `--debug` flag for verbose logging:
-
-```bash
-npx efficient-recorder --debug --endpoint YOUR_S3_ENDPOINT --key YOUR_ACCESS_KEY --secret YOUR_SECRET_KEY
-```
+3. **No Audio/Video Input**
+   - Check system input devices
+   - Verify microphone and webcam permissions
 
 ## License
 
@@ -146,7 +155,7 @@ MIT License - See LICENSE file for details
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please submit a Pull Request.
 
 ## Support
 
