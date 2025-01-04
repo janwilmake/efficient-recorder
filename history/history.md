@@ -1,0 +1,1 @@
+We could also intermittently safe browsing history besides the screenshots/video and audio, because this could be a great entry point for the agent to retrieve data as context if you are later talking to it about what you were doing on the pc.
