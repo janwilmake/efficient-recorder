@@ -6,7 +6,6 @@ const AudioRecorder = require("node-audiorecorder");
 const screenshot = require("screenshot-desktop");
 const NodeWebcam = require("node-webcam");
 const { program } = require("commander");
-const { PassThrough } = require("stream");
 
 // CLI configuration
 program
