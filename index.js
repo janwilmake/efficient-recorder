@@ -1,18 +1,22 @@
 #!/usr/bin/env node
 
-const { S3Client } = require("@aws-sdk/client-s3");
-const { Upload } = require("@aws-sdk/lib-storage");
 const AudioRecorder = require("node-audiorecorder");
 const screenshot = require("screenshot-desktop");
 const NodeWebcam = require("node-webcam");
 const { program } = require("commander");
+const { createStorageAdapter } = require("./storage-adapter");
 
 // CLI configuration
 program
-  .requiredOption("--endpoint <endpoint>", "S3 endpoint")
-  .requiredOption("--region <region>", "S3 region")
-  .requiredOption("--key <key>", "AWS access key")
-  .requiredOption("--secret <secret>", "AWS secret key")
+  .option("--mode <mode>", "Storage mode: 's3' or 'local'", "s3")
+  .option("--endpoint <endpoint>", "S3 endpoint (required for s3 mode)")
+  .option("--region <region>", "S3 region (required for s3 mode)")
+  .option("--key <key>", "AWS access key (required for s3 mode)")
+  .option("--secret <secret>", "AWS secret key (required for s3 mode)")
+  .option(
+    "--localDirectory <path>",
+    "Local directory path (required for local mode)",
+  )
   .option(
     "--screenshot-interval <interval>",
     "Screenshot interval in ms",
@@ -31,15 +35,41 @@ program
 
 const opts = program.opts();
 
-// Initialize S3 client
-const s3Client = new S3Client({
+if (opts.mode === "s3") {
+  if (!opts.endpoint) {
+    console.error("Error: --endpoint is required in s3 mode");
+    process.exit(1);
+  }
+  if (!opts.region) {
+    console.error("Error: --region is required in s3 mode");
+    process.exit(1);
+  }
+  if (!opts.key) {
+    console.error("Error: --key (AWS access key) is required in s3 mode");
+    process.exit(1);
+  }
+  if (!opts.secret) {
+    console.error("Error: --secret (AWS secret key) is required in s3 mode");
+    process.exit(1);
+  }
+} else if (opts.mode === "local") {
+  if (!opts.localDirectory) {
+    console.error("Error: --localDirectory is required in local mode");
+    process.exit(1);
+  }
+}
+
+// If we get here, validation passed, so we can proceed
+console.log("Running with options:", opts);
+
+// Initialize storage client
+const storage = createStorageAdapter({
+  mode: opts.storageMode,
+  localDirectory: opts.localDirectory,
   endpoint: opts.endpoint,
   region: opts.region,
-  credentials: {
-    accessKeyId: opts.key,
-    secretAccessKey: opts.secret,
-  },
-  forcePathStyle: true,
+  accessKeyId: opts.key,
+  secretAccessKey: opts.secret,
 });
 
 // Initialize webcam
@@ -186,22 +216,8 @@ class EfficientRecorder {
 
   async uploadImage(buffer, type, timestamp) {
     try {
-      const key = `${type}-${timestamp}.png`;
-
-      const upload = new Upload({
-        client: s3Client,
-        params: {
-          Bucket: "recordings",
-          Key: key,
-          Body: buffer,
-          ContentType: type === "webcam" ? "image/jpeg" : "image/png",
-        },
-        queueSize: 4,
-        partSize: 1024 * 1024 * 5, // 5MB parts
-      });
-
-      const result = await upload.done();
-      console.log(`${type} upload completed:`, result.Key);
+      await storage.storeImage(buffer, type, timestamp);
+      console.log(`${type} upload completed:`, type, timestamp);
     } catch (error) {
       console.error(`Error uploading ${type}:`, error);
     }
@@ -288,22 +304,8 @@ class EfficientRecorder {
 
       // Create and start the upload
       const timestamp = new Date().toISOString();
-      const key = `recording-${timestamp}.wav`;
-
-      const upload = new Upload({
-        client: s3Client,
-        params: {
-          Bucket: "recordings",
-          Key: key,
-          Body: completeBuffer,
-          ContentType: "audio/wav",
-        },
-        queueSize: 4,
-        partSize: 1024 * 1024 * 5, // 5MB parts
-      });
-
-      const result = await upload.done();
-      console.log("Audio upload completed successfully:", result.Key);
+      await storage.storeAudio(completeBuffer, timestamp);
+      console.log("Audio upload completed successfully:", timestamp);
 
       // Clean up
       this.currentStream = null;
