@@ -1,6 +1,6 @@
 {
   "name": "efficient-recorder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Efficient audio recorder that switches between 8kHz and 44.1kHz based on volume",
   "main": "index.js",
   "bin": {

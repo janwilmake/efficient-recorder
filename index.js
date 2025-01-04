@@ -9,6 +9,7 @@ const { PassThrough } = require("stream");
 // CLI configuration
 program
   .requiredOption("--endpoint <endpoint>", "S3 endpoint")
+  .requiredOption("--region <region>", "S3 region")
   .requiredOption("--key <key>", "AWS access key")
   .requiredOption("--secret <secret>", "AWS secret key")
   .parse(process.argv);
@@ -18,7 +19,7 @@ const opts = program.opts();
 // Initialize S3 client
 const s3Client = new S3Client({
   endpoint: opts.endpoint,
-  region: "WEUR",
+  region: opts.region,
   credentials: {
     accessKeyId: opts.key,
     secretAccessKey: opts.secret,
@@ -30,12 +31,11 @@ class EfficientRecorder {
   constructor() {
     this.isRecording = false;
     this.currentStream = null;
-    this.uploadStream = null;
     this.monitorStream = null;
     this.lowQualityRecorder = null;
     this.highQualityRecorder = null;
     this.silenceTimer = null;
-    this.upload = null;
+    this.recordingChunks = []; // Buffer to store audio chunks
     this.setupRecorders();
   }
 
@@ -114,88 +114,73 @@ class EfficientRecorder {
     if (this.isRecording) return;
 
     console.log("Starting high-quality recording...");
+    this.startTime = Date.now();
     this.isRecording = true;
-
-    // Create a new upload stream
-    this.uploadStream = new PassThrough();
-    const timestamp = new Date().toISOString().replace(/:/g, "-"); // Make filename safe
-    const key = `recording-${timestamp}.wav`;
-
-    // Create upload using Upload class from lib-storage
-    this.upload = new Upload({
-      client: s3Client,
-      params: {
-        Bucket: "recordings",
-        Key: key,
-        Body: this.uploadStream,
-        ContentType: "audio/wav",
-      },
-      queueSize: 4,
-      partSize: 1024 * 1024 * 5, // 5MB parts
-    });
-
-    // Start the upload but don't call .done() yet
-    this.upload.on("httpUploadProgress", (progress) => {
-      console.log(`Upload progress: ${progress.loaded} bytes`);
-    });
+    this.recordingChunks = []; // Reset chunks array
 
     // Start high quality recording and get its stream
     this.highQualityRecorder.start();
     this.currentStream = this.highQualityRecorder.stream();
 
-    // Pipe the recording stream to the upload stream
-    this.currentStream.pipe(this.uploadStream);
+    // Collect chunks of audio data
+    this.currentStream.on("data", (chunk) => {
+      this.recordingChunks.push(chunk);
+    });
+
+    // Handle any errors in the recording stream
+    this.currentStream.on("error", (err) => {
+      console.error("Error in recording stream:", err);
+    });
   }
 
   async stopRecording() {
     if (!this.isRecording) return;
 
-    console.log("Stopping recording...");
+    const duration = (Date.now() - this.startTime) / 1000;
+    console.log("Stopping recording... Duration:", duration, "seconds");
+
     this.isRecording = false;
     this.silenceTimer = null;
 
-    if (this.currentStream) {
-      this.currentStream.unpipe();
-      this.highQualityRecorder.stop();
+    // Stop the recorder
+    this.highQualityRecorder.stop();
+
+    // Wait a bit for any final chunks
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    try {
+      // Combine all chunks into a single buffer
+      const completeBuffer = Buffer.concat(this.recordingChunks);
+      console.log(`Total recording size: ${completeBuffer.length} bytes`);
+
+      // Create and start the upload
+      const timestamp = new Date().toISOString();
+      const key = `recording-${timestamp}.wav`;
+
+      const upload = new Upload({
+        client: s3Client,
+        params: {
+          Bucket: "recordings",
+          Key: key,
+          Body: completeBuffer,
+          ContentType: "audio/wav",
+        },
+        queueSize: 4,
+        partSize: 1024 * 1024 * 5, // 5MB parts
+      });
+
+      const result = await upload.done();
+      console.log("Upload completed successfully:", result.Key);
+
+      // Clean up
       this.currentStream = null;
-    }
-
-    if (this.uploadStream) {
-      this.uploadStream.end();
-      this.uploadStream = null;
-    }
-
-    if (this.upload) {
-      try {
-        // Now call .done() to complete the upload
-        await this.upload.done();
-        console.log("Upload completed successfully");
-      } catch (err) {
-        console.error("Error completing upload:", err);
-      }
-      this.upload = null;
-    }
-  }
-
-  cleanup() {
-    if (this.lowQualityRecorder) {
-      this.lowQualityRecorder.stop();
-    }
-    if (this.highQualityRecorder) {
-      this.highQualityRecorder.stop();
+      this.recordingChunks = [];
+    } catch (err) {
+      console.error("Error completing upload:", err);
+      throw err;
     }
   }
 }
-
-// Handle process termination
-process.on("SIGINT", async () => {
-  console.log("\nGracefully shutting down...");
-  if (recorder) {
-    await recorder.stopRecording();
-    recorder.cleanup();
-  }
-  process.exit(0);
-});
 
 // Start the recorder
 const recorder = new EfficientRecorder();
