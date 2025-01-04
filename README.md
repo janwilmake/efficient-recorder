@@ -159,4 +159,4 @@ Contributions are welcome! Please submit a Pull Request.
 
 ## Support
 
-For issues and feature requests, please [open an issue](https://github.com/yourusername/efficient-recorder/issues) on GitHub.
+For issues and feature requests, please [open an issue](https://github.com/janwilmake/efficient-recorder/issues) on GitHub.
