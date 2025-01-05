@@ -4,35 +4,15 @@ Today I was inspired by this tweet after which I fell into this rabbit hole to c
 
 After trying to implement this using Claude in Swift I completely failed (see folder [swift-version](swift-version)) so I decided to create a simpler version (also using Claude) in Node.js
 
-# Efficient Recorder
+# Efficient Recorder (that's the goal, at least)
 
-An intelligent, multi-modal recording CLI tool that automatically captures and streams audio, screenshots, and webcam video to S3. Uses advanced detection and efficient resource management to capture multimedia content.
+Goal: Create the most battery-life friendly recorder to stream video/screen/mic/system-audio to a cloud storage service of choice, open source.
 
 ## Features
 
-- **Intelligent Audio Recording**:
-
-  - Monitors audio at 8kHz with automatic speech detection
-  - Switches to high-quality 44.1kHz recording when speech is detected
-  - Automatically stops recording after 2 seconds of silence
-  - Direct streaming to S3
-
-- **Automated Screenshot Capture**:
-
-  - Configurable screenshot interval
-  - Immediate upload of screenshots to S3
-  - Low-overhead screen capture
-
-- **Webcam Video Capture**:
-
-  - Configurable webcam capture interval
-  - Direct upload of webcam images to S3
-  - Supports custom webcam device selection
-
-- **Efficient Resource Management**:
-  - Minimal system resource usage during idle periods
-  - Intelligent detection and recording mechanisms
-  - Concurrent upload processing
+- Captures mic audio, screenshots, and webcam photos at configurable fps
+- For audio, uses low-energy volume detection to determine what to record
+- Streams all data to configurable S3 endpoint (Can also use [your own server using MinIO](https://github.com/minio/minio))
 
 ## Prerequisites
 
@@ -151,7 +131,7 @@ npx efficient-recorder \
 
 ## License
 
-MIT License - See LICENSE file for details
+MIT License
 
 ## Contributing
 
