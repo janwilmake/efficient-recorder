@@ -16,7 +16,7 @@ Goal: Create the most **battery-life friendly** recorder to stream video/screen/
 
 I really want this to exist, but won't pursue it for now. This repo serves as an example. Open to contributors! [DM me](https://x.com/janwilmake)
 
-After the [hackernews thread](https://news.ycombinator.com/item?id=42596607), I saw there are a couple other similar projects in various levels of completion, but none focuses on battery:
+After the [hackernews thread](https://news.ycombinator.com/item?id=42596607), I saw there are a couple other similar projects in various levels of completion (but none focuses on battery):
 
 - Screenpipe https://github.com/mediar-ai/screenpipe
 - Memento https://github.com/apirrone/Memento
