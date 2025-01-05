@@ -22,6 +22,8 @@ After the [hackernews thread](https://news.ycombinator.com/item?id=42596607), I 
 - Memento https://github.com/apirrone/Memento
 - Rem https://github.com/jasonjmcghee/rem
 
+**Update**: Also, I made a spin-off from this called [yaptabber](https://github.com/janwilmake/yaptabber) - it only records when you talk
+
 ## Prerequisites
 
 ### Required Software
