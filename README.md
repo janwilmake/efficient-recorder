@@ -6,13 +6,21 @@ After trying to implement this using Claude in Swift I completely failed (see fo
 
 # Efficient Recorder (that's the goal, at least)
 
-Goal: Create the most battery-life friendly recorder to stream video/screen/mic/system-audio to a cloud storage service of choice, open source.
+Goal: Create the most **battery-life friendly** recorder to stream video/screen/mic/system-audio to any **S3-compatible** cloud-storage-service of choice, open source.
 
 ## Features
 
-- Captures mic audio, screenshots, and webcam photos at configurable fps
+- Captures Mic audio, screenshots, and webcam photos at configurable fps
 - For audio, uses low-energy volume detection to determine what to record
 - Streams all data to configurable S3 endpoint (Can also use [your own server using MinIO](https://github.com/minio/minio))
+
+I really want this to exist, but won't pursue it for now. This repo serves as an example. Open to contributors! [DM me](https://x.com/janwilmake)
+
+After the [hackernews thread](https://news.ycombinator.com/item?id=42596607), I saw there are a couple other similar projects in various levels of completion, but none focuses on battery:
+
+- Screenpipe https://github.com/mediar-ai/screenpipe
+- Memento https://github.com/apirrone/Memento
+- Rem https://github.com/jasonjmcghee/rem
 
 ## Prerequisites
 
@@ -132,11 +140,3 @@ npx efficient-recorder \
 ## License
 
 MIT License
-
-## Contributing
-
-Contributions are welcome! Please submit a Pull Request.
-
-## Support
-
-For issues and feature requests, please [open an issue](https://github.com/janwilmake/efficient-recorder/issues) on GitHub.
