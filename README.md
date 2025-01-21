@@ -22,9 +22,11 @@ After the [hackernews thread](https://news.ycombinator.com/item?id=42596607), I 
 - Memento https://github.com/apirrone/Memento
 - Rem https://github.com/jasonjmcghee/rem
 
-**Update**: Also, I made a spin-off from this called [yaptabber](https://github.com/janwilmake/yaptabber) - it only records when you talk
+Other related repos I made:
 
-**Update January 10, 2025**: I made a ip-camera streamer and this is super storage and battery efficient: https://github.com/janwilmake/ip-camera-to-s3-macos
+- https://github.com/janwilmake/ip-camera-to-s3-macos
+- https://github.com/janwilmake/yaptabber
+- https://github.com/janwilmake/export-safari
 
 ## Prerequisites
 
