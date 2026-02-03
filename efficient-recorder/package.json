@@ -1,0 +1,20 @@
+{
+  "name": "efficient-recorder",
+  "version": "1.0.3",
+  "description": "Efficient audio recorder that switches between 8kHz and 44.1kHz based on volume",
+  "main": "index.js",
+  "bin": {
+    "efficient-recorder": "./index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.722.0",
+    "@aws-sdk/lib-storage": "^3.722.0",
+    "commander": "^13.0.0",
+    "node-audiorecorder": "^3.0.0",
+    "node-webcam": "^0.8.2",
+    "screenshot-desktop": "^1.15.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

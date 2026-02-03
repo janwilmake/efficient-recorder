@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.efficient-recorder</string>
+    <key>CFBundleName</key>
+    <string>efficient-recorder</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>We need microphone access to record audio.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>We need screen recording access to capture screenshots.</string>
+    <key>NSSystemExtensionUsageDescription</key>
+    <string>We need system audio capture capabilities.</string>
+</dict>
+</plist>

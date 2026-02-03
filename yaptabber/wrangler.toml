@@ -1,0 +1,8 @@
+name = "yaptabber"
+compatibility_date = "2025-01-02"
+assets = { directory = "./public" }
+
+routes = [
+  { pattern = "yaptabber.com", custom_domain = true },
+  { pattern = "www.yaptabber.com", custom_domain = true }
+]

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YapTabber - Record When You Talk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://github.com/janwilmake/yaptabber" />
+    <meta property="og:description" content="Voice-activated screen and webcam recording made simple" />
+</head>
+
+<body class="bg-black text-white h-screen flex flex-col overflow-hidden">
+    <main class="flex-1 flex flex-col justify-between p-8">
+        <!-- Hero Section -->
+        <div class="flex-1 flex flex-col justify-center max-w-6xl mx-auto w-full">
+            <h1 class="text-7xl md:text-8xl lg:text-9xl font-black tracking-tight">
+                RECORD WHEN
+                <span class="block">YOU TALK</span>
+            </h1>
+
+            <!-- Feature Example -->
+            <div class="mt-8 text-2xl md:text-3xl lg:text-4xl font-mono bg-white/5 p-6 rounded-lg overflow-x-auto">
+                <code class="text-green-400">
+                    <span class="text-gray-500"># Voice detection threshold:</span> 50db
+                    <br/>
+                    <span class="text-gray-500"># Auto-stop after silence:</span> 5s
+                </code>
+            </div>
+
+            <!-- CTA -->
+            <div class="mt-8">
+                <a href="https://github.com/janwilmake/yaptabber"
+                    class="inline-block bg-white text-black px-12 py-6 text-2xl md:text-3xl font-bold hover:bg-gray-100 transition-colors">
+                    GET STARTED →
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer with features -->
+        <div class="mt-auto pt-8 text-xs text-gray-500 space-y-2">
+            <div class="flex flex-wrap gap-x-8 gap-y-2">
+                <span>✓ Voice-activated</span>
+                <span>✓ Screen capture</span>
+                <span>✓ Webcam recording</span>
+                <span>✓ Auto upload to S3</span>
+            </div>
+            <div class="flex gap-x-8 flex-wrap gap-y-2">
+                <span>Perfect for: Tutorials · Presentations · Video notes · Quick captures</span>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

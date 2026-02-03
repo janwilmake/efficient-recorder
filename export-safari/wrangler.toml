@@ -1,0 +1,9 @@
+name = "safari-history"
+main = "main.ts"
+compatibility_date = "2025-01-21"
+
+# Replace this with your own after running 'npm run create'
+[[d1_databases]]
+binding = "DB"
+database_name = "safari-history"
+database_id = "6772e70e-4a8a-4a0a-8c54-0a5acc55b3c9"

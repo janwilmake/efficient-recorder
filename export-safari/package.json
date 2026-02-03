@@ -1,0 +1,18 @@
+{
+  "scripts": {
+    "create": "npx wrangler d1 create safari-history"
+  },
+  "dependencies": {
+    "bplist-parser": "^0.3.2",
+    "dotenv": "^16.4.7",
+    "node-fetch": "^3.3.2",
+    "plist": "^3.1.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250121.0",
+    "@types/bun": "^1.1.18",
+    "@types/node": "^22.10.7",
+    "@types/plist": "^3.0.5"
+  }
+}

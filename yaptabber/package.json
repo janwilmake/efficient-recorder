@@ -1,0 +1,20 @@
+{
+  "name": "yaptabber",
+  "version": "0.0.3",
+  "description": "Yaptabber uploads your screen, video, and mic to your s3 whenever there's sound detected",
+  "main": "index.js",
+  "bin": {
+    "efficient-recorder": "./index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.722.0",
+    "@aws-sdk/lib-storage": "^3.722.0",
+    "commander": "^13.0.0",
+    "node-audiorecorder": "^3.0.0",
+    "node-webcam": "^0.8.2",
+    "record-screen": "^3.19.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

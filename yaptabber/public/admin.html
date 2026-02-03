@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yaptabber</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aws-sdk/2.1048.0/aws-sdk.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: calc(100vh - 150px);
+        }
+
+        .left-panel {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-y: auto;
+        }
+
+        .right-panel {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-y: auto;
+        }
+
+        .config-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .config-form input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .recording-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin: 5px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .recording-item:hover {
+            background: #f0f0f0;
+        }
+
+        .selected {
+            background: #e3f2fd;
+        }
+
+        .players-container {
+            display: grid;
+            grid-template-rows: 1fr auto;
+            gap: 20px;
+        }
+
+        .main-player {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .secondary-players {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .player-wrapper {
+            width: 100%;
+        }
+
+        video,
+        audio {
+            width: 100%;
+            background: black;
+            border-radius: 4px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+
+        .config-icon {
+            cursor: pointer;
+            color: #666;
+        }
+
+        .config-icon:hover {
+            color: #333;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .header-container {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header-container">
+        <h1>Yaptabber</h1>
+        <div><a href="https://github.com/janwilmake/yaptabber">Installation instructions</a></div>
+    </div>
+
+    <div class="container">
+        <div class="left-panel">
+            <div class="panel-header">
+                <h2>Recordings <i class="fas fa-cog config-icon" onclick="toggleConfig()"></i></h2>
+            </div>
+            <div id="recordings"></div>
+        </div>
+
+        <div class="right-panel">
+            <div id="configPanel" class="config-form hidden">
+                <h2>S3 Configuration</h2>
+                <input type="text" id="bucket" placeholder="Bucket Name" />
+                <input type="text" id="accessKey" placeholder="Access Key" />
+                <input type="password" id="secretKey" placeholder="Secret Key" />
+                <input type="text" id="region" placeholder="Region" />
+                <input type="text" id="endpoint" placeholder="Endpoint" />
+                <input type="text" id="prefix" placeholder="Prefix" value="yaptabber/" />
+                <button onclick="initializeS3()">Connect</button>
+                <div id="errorMessage" class="error"></div>
+            </div>
+
+            <div id="playersContainer" class="players-container hidden">
+                <button onclick="syncPlay()">Play All</button>
+
+                <div class="main-player">
+                    <video id="screenVideo" controls></video>
+                </div>
+                <div class="secondary-players">
+                    <div class="player-wrapper">
+                        <video id="webcamVideo" controls></video>
+                    </div>
+                    <div class="player-wrapper">
+                        <audio id="audio" controls></audio>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let s3;
+        let currentRecordingTimestamp = null;
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+        }
+
+        function toggleConfig() {
+            const configPanel = document.getElementById('configPanel');
+            const playersContainer = document.getElementById('playersContainer');
+
+            configPanel.classList.toggle('hidden');
+            if (!configPanel.classList.contains('hidden')) {
+                playersContainer.classList.add('hidden');
+            }
+        }
+
+        function saveConfig() {
+            const config = {
+                accessKey: document.getElementById('accessKey').value,
+                secretKey: document.getElementById('secretKey').value,
+                region: document.getElementById('region').value,
+                endpoint: document.getElementById('endpoint').value,
+                bucket: document.getElementById('bucket').value,
+                prefix: document.getElementById('prefix').value || 'yaptabber/'
+            };
+            localStorage.setItem('s3Config', JSON.stringify(config));
+        }
+
+        function loadConfig() {
+            const savedConfig = localStorage.getItem('s3Config');
+            if (savedConfig) {
+                const config = JSON.parse(savedConfig);
+                document.getElementById('accessKey').value = config.accessKey || '';
+                document.getElementById('secretKey').value = config.secretKey || '';
+                document.getElementById('region').value = config.region || '';
+                document.getElementById('endpoint').value = config.endpoint || '';
+                document.getElementById('bucket').value = config.bucket || '';
+                document.getElementById('prefix').value = config.prefix || 'yaptabber/';
+
+                // If all required fields are present, automatically connect
+                if (config.accessKey && config.secretKey && config.region &&
+                    config.endpoint && config.bucket) {
+                    initializeS3();
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadConfig);
+
+        function initializeS3() {
+            const accessKey = document.getElementById('accessKey').value;
+            const secretKey = document.getElementById('secretKey').value;
+            const region = document.getElementById('region').value;
+            const endpoint = document.getElementById('endpoint').value;
+            const bucket = document.getElementById('bucket').value;
+
+            saveConfig();
+
+            if (!accessKey || !secretKey || !region || !endpoint || !bucket) {
+                showError('Please fill in all fields');
+                return;
+            }
+
+            showError('');
+
+            AWS.config.update({
+                accessKeyId: accessKey,
+                secretAccessKey: secretKey,
+                region: region,
+                endpoint: endpoint,
+                s3ForcePathStyle: true,
+                signatureVersion: 'v4',
+                httpOptions: {
+                    timeout: 5000,
+                    connectTimeout: 5000
+                }
+            });
+
+            s3 = new AWS.S3();
+
+            s3.listObjects({ Bucket: bucket, MaxKeys: 1 }, (err, data) => {
+                if (err) {
+                    console.error('Connection error:', err);
+                    showError(`Connection failed: ${err.message}`);
+                    return;
+                }
+
+                document.getElementById('configPanel').classList.add('hidden');
+                document.getElementById('playersContainer').classList.remove('hidden');
+                listRecordings(bucket);
+            });
+        }
+
+        function listRecordings(bucket) {
+            const prefix = document.getElementById('prefix').value || 'yaptabber/';
+            s3.listObjects({
+                Bucket: bucket,
+                Prefix: prefix
+            }, (err, data) => {
+                if (err) {
+                    console.error('Error listing objects:', err);
+                    showError(`Failed to list recordings: ${err.message}`);
+                    return;
+                }
+
+                const recordings = new Set();
+                data.Contents.forEach(object => {
+                    const match = object.Key.match(/recording-(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/);
+                    if (match) {
+                        recordings.add(match[1]);
+                    }
+                });
+
+                if (recordings.size === 0) {
+                    showError('No recordings found in the bucket');
+                    return;
+                }
+
+                displayRecordings(Array.from(recordings));
+            });
+        }
+
+        function displayRecordings(recordings) {
+            const container = document.getElementById('recordings');
+            container.innerHTML = '';
+
+            recordings.sort().reverse().forEach(timestamp => {
+                const div = document.createElement('div');
+                div.className = 'recording-item';
+                div.innerHTML = `
+                    <span>${new Date(timestamp).toLocaleString()}</span>
+                `;
+                div.onclick = () => loadRecording(timestamp);
+                container.appendChild(div);
+            });
+        }
+
+        function loadRecording(timestamp) {
+            document.querySelectorAll('.recording-item').forEach(item => item.classList.remove('selected'));
+            event.target.closest('.recording-item').classList.add('selected');
+
+            currentRecordingTimestamp = timestamp;
+            const prefix = document.getElementById('prefix').value || 'yaptabber/';
+            const screenVideo = document.getElementById('screenVideo');
+            const webcamVideo = document.getElementById('webcamVideo');
+            const audio = document.getElementById('audio');
+
+            document.getElementById('configPanel').classList.add('hidden');
+            document.getElementById('playersContainer').classList.remove('hidden');
+
+            const screenParams = {
+                Bucket: document.getElementById('bucket').value,
+                Key: `${prefix}recording-${timestamp}-screen.mp4`,
+                Expires: 3600
+            };
+
+            const webcamParams = {
+                Bucket: document.getElementById('bucket').value,
+                Key: `${prefix}recording-${timestamp}-webcam.mp4`,
+                Expires: 3600
+            };
+
+            const audioParams = {
+                Bucket: document.getElementById('bucket').value,
+                Key: `${prefix}recording-${timestamp}-audio.wav`,
+                Expires: 3600
+            };
+
+            s3.getSignedUrl('getObject', screenParams, (err, url) => {
+                if (!err) screenVideo.src = url;
+            });
+
+            s3.getSignedUrl('getObject', webcamParams, (err, url) => {
+                if (!err) webcamVideo.src = url;
+            });
+
+            s3.getSignedUrl('getObject', audioParams, (err, url) => {
+                if (!err) audio.src = url;
+            });
+        }
+
+        function syncPlay() {
+            const screenVideo = document.getElementById('screenVideo');
+            const webcamVideo = document.getElementById('webcamVideo');
+            const audio = document.getElementById('audio');
+
+            screenVideo.currentTime = 0;
+            webcamVideo.currentTime = 0;
+            audio.currentTime = 0;
+
+            Promise.all([
+                screenVideo.play(),
+                webcamVideo.play(),
+                audio.play()
+            ]).catch(error => {
+                console.error('Error playing media:', error);
+                showError(`Failed to play media: ${error.message}`);
+            });
+        }
+    </script>
+</body>
+
+</html>
